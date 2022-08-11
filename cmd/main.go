@@ -6,7 +6,6 @@ import (
 	"ethereum-watcher/blockchain"
 	"ethereum-watcher/plugin"
 	"ethereum-watcher/rpc"
-	"ethereum-watcher/utils"
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -21,12 +20,11 @@ var eventSigs []string
 var blockBackoff int
 
 func main() {
-	utils.SetLogger(uint32(logrus.DebugLevel), false)
-
 	rootCMD.AddCommand(blockNumCMD)
 	rootCMD.AddCommand(tokenTransferCMD)
-	rootCMD.Flags().StringVar(&api, "rpc", "https://bsc-testnet.nodereal.io/v1/f62bd255a11145dfbc560565c1ad47c9", "RPC url")
-	_ = rootCMD.MarkFlagRequired("rpc")
+
+	rootCMD.PersistentFlags().StringVarP(&api, "rpc", "r", "https://bsc-testnet.nodereal.io/v1/f62bd255a11145dfbc560565c1ad47c9", "RPC url")
+	_ = rootCMD.MarkPersistentFlagRequired("rpc")
 
 	tokenTransferCMD.Flags().StringVar(&tokenAddr, "token", "", "token address listen")
 	_ = tokenTransferCMD.MarkFlagRequired("token")
@@ -36,12 +34,15 @@ func main() {
 	contractEventListenerCMD.Flags().StringArrayVarP(&eventSigs, "events", "e", []string{}, "signatures of events we are interested in")
 	_ = contractEventListenerCMD.MarkFlagRequired("events")
 	contractEventListenerCMD.Flags().IntVar(&blockBackoff, "block-backoff", 0, "how many blocks we go back")
+
 	rootCMD.AddCommand(contractEventListenerCMD)
 
 	if err := rootCMD.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+
+	//utils.SetLogger(uint32(logrus.DebugLevel), false)
 }
 
 var rootCMD = &cobra.Command{
