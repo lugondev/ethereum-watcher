@@ -2,33 +2,39 @@ package main
 
 import (
 	"context"
+	"ethereum-watcher"
+	"ethereum-watcher/blockchain"
+	"ethereum-watcher/plugin"
+	"ethereum-watcher/rpc"
+	"ethereum-watcher/utils"
 	"fmt"
-	"github.com/HydroProtocol/ethereum-watcher"
-	"github.com/HydroProtocol/ethereum-watcher/blockchain"
-	"github.com/HydroProtocol/ethereum-watcher/plugin"
-	"github.com/HydroProtocol/ethereum-watcher/rpc"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
 	"os/signal"
 )
 
-const (
-	api = "https://mainnet.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
-)
-
-var contractAdx string
+var api string
+var contractAddr string
+var tokenAddr string
 var eventSigs []string
 var blockBackoff int
 
 func main() {
-	rootCMD.AddCommand(blockNumCMD)
-	rootCMD.AddCommand(usdtTransferCMD)
+	utils.SetLogger(uint32(logrus.DebugLevel), false)
 
-	contractEventListenerCMD.Flags().StringVarP(&contractAdx, "contract", "c", "", "contract address listen to")
-	contractEventListenerCMD.MarkFlagRequired("contract")
+	rootCMD.AddCommand(blockNumCMD)
+	rootCMD.AddCommand(tokenTransferCMD)
+	rootCMD.Flags().StringVar(&api, "rpc", "https://bsc-testnet.nodereal.io/v1/f62bd255a11145dfbc560565c1ad47c9", "RPC url")
+	_ = rootCMD.MarkFlagRequired("rpc")
+
+	tokenTransferCMD.Flags().StringVar(&tokenAddr, "token", "", "token address listen")
+	_ = tokenTransferCMD.MarkFlagRequired("token")
+
+	contractEventListenerCMD.Flags().StringVarP(&contractAddr, "contract", "c", "", "contract address listen to")
+	_ = contractEventListenerCMD.MarkFlagRequired("contract")
 	contractEventListenerCMD.Flags().StringArrayVarP(&eventSigs, "events", "e", []string{}, "signatures of events we are interested in")
-	contractEventListenerCMD.MarkFlagRequired("events")
+	_ = contractEventListenerCMD.MarkFlagRequired("events")
 	contractEventListenerCMD.Flags().IntVar(&blockBackoff, "block-backoff", 0, "how many blocks we go back")
 	rootCMD.AddCommand(contractEventListenerCMD)
 
@@ -73,12 +79,10 @@ var blockNumCMD = &cobra.Command{
 	},
 }
 
-var usdtTransferCMD = &cobra.Command{
-	Use:   "usdt-transfer",
-	Short: "Show Transfer Event of USDT",
+var tokenTransferCMD = &cobra.Command{
+	Use:   "token-transfer",
+	Short: "Show Transfer Event of Token",
 	Run: func(cmd *cobra.Command, args []string) {
-		usdtContractAdx := "0xdac17f958d2ee523a2206206994597c13d831ec7"
-
 		// Transfer
 		topicsInterestedIn := []string{"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"}
 
@@ -103,7 +107,7 @@ var usdtTransferCMD = &cobra.Command{
 			context.TODO(),
 			api,
 			-1,
-			usdtContractAdx,
+			tokenAddr,
 			topicsInterestedIn,
 			handler,
 			ethereum_watcher.ReceiptLogWatcherConfig{
@@ -114,7 +118,10 @@ var usdtTransferCMD = &cobra.Command{
 			},
 		)
 
-		receiptLogWatcher.Run()
+		err := receiptLogWatcher.Run()
+		if err != nil {
+			panic(err)
+		}
 	},
 }
 
@@ -165,7 +172,7 @@ var contractEventListenerCMD = &cobra.Command{
 			context.TODO(),
 			api,
 			startBlockNum,
-			contractAdx,
+			contractAddr,
 			eventSigs,
 			handler,
 			ethereum_watcher.ReceiptLogWatcherConfig{
@@ -176,6 +183,9 @@ var contractEventListenerCMD = &cobra.Command{
 			},
 		)
 
-		receiptLogWatcher.Run()
+		err := receiptLogWatcher.Run()
+		if err != nil {
+			panic(err)
+		}
 	},
 }

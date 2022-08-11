@@ -2,15 +2,15 @@ package ethereum_watcher
 
 import (
 	"context"
-	"github.com/HydroProtocol/ethereum-watcher/rpc"
-	"github.com/HydroProtocol/ethereum-watcher/structs"
+	"ethereum-watcher/rpc"
+	"ethereum-watcher/structs"
 	"github.com/sirupsen/logrus"
 	"time"
 )
 
 const DefaultStepSizeForBigLag = 10
 
-//deprecated, please use receipt_log_watcher instead.
+// ListenForReceiptLogTillExit deprecated, please use receipt_log_watcher instead.
 func ListenForReceiptLogTillExit(
 	ctx context.Context,
 	api string,
@@ -27,7 +27,7 @@ func ListenForReceiptLogTillExit(
 		stepSizeForBigLag = DefaultStepSizeForBigLag
 	}
 
-	rpc := rpc.NewEthRPCWithRetry(api, 5)
+	rpcWithRetry := rpc.NewEthRPCWithRetry(api, 5)
 
 	var blockNumToBeProcessedNext = startBlock
 
@@ -36,7 +36,7 @@ func ListenForReceiptLogTillExit(
 		case <-ctx.Done():
 			return blockNumToBeProcessedNext - 1
 		default:
-			highestBlock, err := rpc.GetCurrentBlockNum()
+			highestBlock, err := rpcWithRetry.GetCurrentBlockNum()
 			if err != nil {
 				return blockNumToBeProcessedNext - 1
 			}
@@ -61,7 +61,7 @@ func ListenForReceiptLogTillExit(
 				to = blockNumToBeProcessedNext
 			}
 
-			logs, err := rpc.GetLogs(uint64(blockNumToBeProcessedNext), uint64(to), contract, interestedTopics)
+			logs, err := rpcWithRetry.GetLogs(uint64(blockNumToBeProcessedNext), uint64(to), contract, interestedTopics)
 			if err != nil {
 				return blockNumToBeProcessedNext - 1
 			}

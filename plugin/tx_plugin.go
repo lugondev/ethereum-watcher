@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"github.com/HydroProtocol/ethereum-watcher/structs"
+	"ethereum-watcher/structs"
 )
 
 type ITxPlugin interface {

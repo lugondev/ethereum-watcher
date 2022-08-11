@@ -2,21 +2,22 @@ package ethereum_watcher
 
 import (
 	"context"
+	"ethereum-watcher/blockchain"
+	"ethereum-watcher/plugin"
+	"ethereum-watcher/structs"
 	"fmt"
-	"github.com/HydroProtocol/ethereum-watcher/blockchain"
-	"github.com/HydroProtocol/ethereum-watcher/plugin"
-	"github.com/HydroProtocol/ethereum-watcher/structs"
 	"github.com/labstack/gommon/log"
 	"github.com/shopspring/decimal"
 	"github.com/sirupsen/logrus"
 	"testing"
 )
 
+var api = "https://bsc-testnet.nodereal.io/v1/f62bd255a11145dfbc560565c1ad47c9"
+
 // todo why some tx index in block is zero?
 func TestTxReceiptPlugin(t *testing.T) {
 	log.SetLevel(log.DEBUG)
 
-	api := "https://mainnet.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
 	w := NewHttpBasedEthWatcher(context.Background(), api)
 
 	w.RegisterTxReceiptPlugin(plugin.NewTxReceiptPlugin(func(txAndReceipt *structs.RemovableTxAndReceipt) {
@@ -27,11 +28,10 @@ func TestTxReceiptPlugin(t *testing.T) {
 		}
 	}))
 
-	w.RunTillExit()
+	_ = w.RunTillExit()
 }
 
 func TestErc20TransferPlugin(t *testing.T) {
-	api := "https://mainnet.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
 	w := NewHttpBasedEthWatcher(context.Background(), api)
 
 	w.RegisterTxReceiptPlugin(plugin.NewERC20TransferPlugin(
@@ -43,11 +43,10 @@ func TestErc20TransferPlugin(t *testing.T) {
 		},
 	))
 
-	w.RunTillExit()
+	_ = w.RunTillExit()
 }
 
 func TestFilterPlugin(t *testing.T) {
-	api := "https://mainnet.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
 	w := NewHttpBasedEthWatcher(context.Background(), api)
 
 	callback := func(txAndReceipt *structs.RemovableTxAndReceipt) {
@@ -70,14 +69,13 @@ func TestFilterPlugin(t *testing.T) {
 }
 
 func TestFilterPluginForDyDxApprove(t *testing.T) {
-	api := "https://mainnet.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
 	w := NewHttpBasedEthWatcher(context.Background(), api)
 
 	callback := func(txAndReceipt *structs.RemovableTxAndReceipt) {
 		receipt := txAndReceipt.Receipt
 
-		for _, log := range receipt.GetLogs() {
-			topics := log.GetTopics()
+		for _, receiptLog := range receipt.GetLogs() {
+			topics := receiptLog.GetTopics()
 			if len(topics) == 3 &&
 				topics[0] == "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925" &&
 				topics[2] == "0x0000000000000000000000001e0447b19bb6ecfdae1e4ae1694b0c3659614e4e" {

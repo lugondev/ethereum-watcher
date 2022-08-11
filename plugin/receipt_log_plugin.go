@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"github.com/HydroProtocol/ethereum-watcher/structs"
+	"ethereum-watcher/structs"
 	"strings"
 )
 
@@ -44,7 +44,7 @@ func (p *ReceiptLogPlugin) Accept(receiptLog *structs.RemovableReceiptLog) {
 	}
 }
 
-// simplified version of specifying topic filters
+// NeedReceiptLog simplified version of specifying topic filters
 // https://github.com/ethereum/wiki/wiki/JSON-RPC#a-note-on-specifying-topic-filters
 func (p *ReceiptLogPlugin) NeedReceiptLog(receiptLog *structs.RemovableReceiptLog) bool {
 	contract := receiptLog.GetAddress()

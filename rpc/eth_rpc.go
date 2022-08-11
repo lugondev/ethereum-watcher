@@ -2,7 +2,7 @@ package rpc
 
 import (
 	"errors"
-	"github.com/HydroProtocol/ethereum-watcher/blockchain"
+	"ethereum-watcher/blockchain"
 	"github.com/onrik/ethrpc"
 	"github.com/sirupsen/logrus"
 	"strconv"
@@ -35,7 +35,7 @@ func (rpc EthBlockChainRPC) getBlockByNum(num uint64, withTx bool) (blockchain.B
 		return nil, errors.New("nil block")
 	}
 
-	return &blockchain.EthereumBlock{b}, err
+	return &blockchain.EthereumBlock{Block: b}, err
 }
 
 func (rpc EthBlockChainRPC) GetTransactionReceipt(txHash string) (blockchain.TransactionReceipt, error) {
@@ -47,7 +47,7 @@ func (rpc EthBlockChainRPC) GetTransactionReceipt(txHash string) (blockchain.Tra
 		return nil, errors.New("nil receipt")
 	}
 
-	return &blockchain.EthereumTransactionReceipt{receipt}, err
+	return &blockchain.EthereumTransactionReceipt{TransactionReceipt: receipt}, err
 }
 
 func (rpc EthBlockChainRPC) GetCurrentBlockNum() (uint64, error) {

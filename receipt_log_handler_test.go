@@ -2,8 +2,8 @@ package ethereum_watcher
 
 import (
 	"context"
-	"github.com/HydroProtocol/ethereum-watcher/rpc"
-	"github.com/HydroProtocol/ethereum-watcher/structs"
+	"ethereum-watcher/rpc"
+	"ethereum-watcher/structs"
 	"github.com/sirupsen/logrus"
 	"testing"
 )
@@ -12,7 +12,6 @@ func TestListenForReceiptLogTillExit(t *testing.T) {
 	logrus.SetLevel(logrus.DebugLevel)
 
 	ctx := context.Background()
-	api := "https://kovan.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
 	startBlock := 12220000
 	contract := "0xAc34923B2b8De9d441570376e6c811D5aA5ed72f"
 	interestedTopics := []string{
@@ -39,7 +38,6 @@ func TestListenForReceiptLogTillExit2(t *testing.T) {
 	stepsForBigLag := 100
 
 	ctx := context.Background()
-	api := "https://kovan.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
 
 	startBlock, _ := rpc.NewEthRPC(api).GetCurrentBlockNum()
 	startBlock = startBlock - uint64(stepsForBigLag*10)

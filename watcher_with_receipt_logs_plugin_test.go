@@ -2,17 +2,17 @@ package ethereum_watcher
 
 import (
 	"context"
+	"ethereum-watcher/plugin"
+	"ethereum-watcher/structs"
+	"ethereum-watcher/utils"
 	"fmt"
-	"github.com/HydroProtocol/ethereum-watcher/plugin"
-	"github.com/HydroProtocol/ethereum-watcher/structs"
 	"github.com/sirupsen/logrus"
 	"testing"
 )
 
 func TestReceiptLogsPlugin(t *testing.T) {
-	logrus.SetLevel(logrus.DebugLevel)
+	utils.SetLogger(uint32(logrus.DebugLevel), false)
 
-	api := "https://kovan.infura.io/v3/19d753b2600445e292d54b1ef58d4df4"
 	w := NewHttpBasedEthWatcher(context.Background(), api)
 
 	contract := "0x63bB8a255a8c045122EFf28B3093Cc225B711F6D"

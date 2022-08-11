@@ -1,8 +1,8 @@
 package plugin
 
 import (
-	"github.com/HydroProtocol/ethereum-watcher/blockchain"
-	"github.com/HydroProtocol/ethereum-watcher/structs"
+	"ethereum-watcher/blockchain"
+	"ethereum-watcher/structs"
 	"github.com/shopspring/decimal"
 	"math/big"
 )
@@ -70,7 +70,6 @@ type TransferEvent struct {
 func extractERC20TransfersIfExist(r *structs.RemovableTxAndReceipt) (rst []TransferEvent) {
 	transferEventSig := "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
-	// todo a little weird
 	if receipt, ok := r.Receipt.(*blockchain.EthereumTransactionReceipt); ok {
 		for _, log := range receipt.Logs {
 			if len(log.Topics) != 3 || log.Topics[0] != transferEventSig {

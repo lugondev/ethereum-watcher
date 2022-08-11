@@ -4,11 +4,11 @@ import (
 	"container/list"
 	"context"
 	"errors"
+	"ethereum-watcher/blockchain"
+	"ethereum-watcher/plugin"
+	"ethereum-watcher/rpc"
+	"ethereum-watcher/structs"
 	"fmt"
-	"github.com/HydroProtocol/ethereum-watcher/blockchain"
-	"github.com/HydroProtocol/ethereum-watcher/plugin"
-	"github.com/HydroProtocol/ethereum-watcher/rpc"
-	"github.com/HydroProtocol/ethereum-watcher/structs"
 	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -40,11 +40,11 @@ type AbstractWatcher struct {
 }
 
 func NewHttpBasedEthWatcher(ctx context.Context, api string) *AbstractWatcher {
-	rpc := rpc.NewEthRPCWithRetry(api, 5)
+	rpcWithRetry := rpc.NewEthRPCWithRetry(api, 5)
 
 	return &AbstractWatcher{
 		Ctx:                     ctx,
-		rpc:                     rpc,
+		rpc:                     rpcWithRetry,
 		NewBlockChan:            make(chan *structs.RemovableBlock, 32),
 		NewTxAndReceiptChan:     make(chan *structs.RemovableTxAndReceipt, 518),
 		NewReceiptLogChan:       make(chan *structs.RemovableReceiptLog, 518),
@@ -72,12 +72,12 @@ func (watcher *AbstractWatcher) RegisterReceiptLogPlugin(plugin plugin.IReceiptL
 	watcher.ReceiptLogPlugins = append(watcher.ReceiptLogPlugins, plugin)
 }
 
-// start sync from latest block
+// RunTillExit start sync from latest block
 func (watcher *AbstractWatcher) RunTillExit() error {
 	return watcher.RunTillExitFromBlock(0)
 }
 
-// start sync from given block
+// RunTillExitFromBlock start sync from given block
 // 0 means start from latest block
 func (watcher *AbstractWatcher) RunTillExitFromBlock(startBlockNum uint64) error {
 
@@ -355,7 +355,7 @@ func (watcher *AbstractWatcher) addNewBlock(block *structs.RemovableBlock, curHi
 				logrus.Debugf("bigStep, doing request, range: %d -> %d (minus: %d)", fromBlock, toBlock, block.Number()-watcher.ReceiptCatchUpFromBlock)
 
 				for k, v := range queryMap {
-					err := watcher.fetchReceiptLogs(false, block, fromBlock, toBlock, k, v)
+					err := watcher.fetchReceiptLogs(false, fromBlock, toBlock, k, v)
 					if err != nil {
 						return err
 					}
@@ -375,7 +375,7 @@ func (watcher *AbstractWatcher) addNewBlock(block *structs.RemovableBlock, curHi
 		}
 
 		for k, v := range queryMap {
-			err := watcher.fetchReceiptLogs(block.IsRemoved, block, block.Number(), block.Number(), k, v)
+			err := watcher.fetchReceiptLogs(block.IsRemoved, block.Number(), block.Number(), k, v)
 			if err != nil {
 				return err
 			}
@@ -406,7 +406,7 @@ func (watcher *AbstractWatcher) addNewBlock(block *structs.RemovableBlock, curHi
 	return nil
 }
 
-func (watcher *AbstractWatcher) fetchReceiptLogs(isRemoved bool, block blockchain.Block, from, to uint64, address string, topics []string) error {
+func (watcher *AbstractWatcher) fetchReceiptLogs(isRemoved bool, from, to uint64, address string, topics []string) error {
 
 	receiptLogs, err := watcher.rpc.GetLogs(from, to, address, topics)
 	if err != nil {

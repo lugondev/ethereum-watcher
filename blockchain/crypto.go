@@ -3,8 +3,8 @@ package blockchain
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"ethereum-watcher/utils"
 	"fmt"
-	"github.com/HydroProtocol/ethereum-watcher/utils"
 	"github.com/btcsuite/btcd/btcec"
 	"golang.org/x/crypto/sha3"
 )

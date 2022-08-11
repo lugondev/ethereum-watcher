@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"github.com/HydroProtocol/ethereum-watcher/structs"
+	"ethereum-watcher/structs"
 )
 
 type IBlockPlugin interface {
@@ -24,7 +24,7 @@ func NewBlockNumPlugin(callback func(uint64, bool)) BlockNumPlugin {
 	}
 }
 
-//provide block info with tx basic infos
+// SimpleBlockPlugin provide block info with tx basic infos
 type SimpleBlockPlugin struct {
 	callback func(block *structs.RemovableBlock)
 }
@@ -40,7 +40,3 @@ func NewSimpleBlockPlugin(callback func(block *structs.RemovableBlock)) SimpleBl
 		callback: callback,
 	}
 }
-
-// block info with tx full infos
-//type BlockWithTxInfoPlugin struct {
-//}

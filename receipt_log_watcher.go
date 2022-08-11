@@ -2,9 +2,9 @@ package ethereum_watcher
 
 import (
 	"context"
+	"ethereum-watcher/blockchain"
+	"ethereum-watcher/rpc"
 	"fmt"
-	"github.com/HydroProtocol/ethereum-watcher/blockchain"
-	"github.com/HydroProtocol/ethereum-watcher/rpc"
 	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -94,14 +94,14 @@ func (w *ReceiptLogWatcher) Run() error {
 
 	var blockNumToBeProcessedNext = w.startBlockNum
 
-	rpc := rpc.NewEthRPCWithRetry(w.api, w.config.RPCMaxRetry)
+	rpcWithRetry := rpc.NewEthRPCWithRetry(w.api, w.config.RPCMaxRetry)
 
 	for {
 		select {
 		case <-w.ctx.Done():
 			return nil
 		default:
-			highestBlock, err := rpc.GetCurrentBlockNum()
+			highestBlock, err := rpcWithRetry.GetCurrentBlockNum()
 			if err != nil {
 				return err
 			}
@@ -136,7 +136,7 @@ func (w *ReceiptLogWatcher) Run() error {
 				to = highestBlockCanProcess
 			}
 
-			logs, err := rpc.GetLogs(uint64(blockNumToBeProcessedNext), uint64(to), w.contract, w.interestedTopics)
+			logs, err := rpcWithRetry.GetLogs(uint64(blockNumToBeProcessedNext), uint64(to), w.contract, w.interestedTopics)
 			if err != nil {
 				return err
 			}
