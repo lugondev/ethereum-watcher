@@ -10,9 +10,14 @@ const timestampFormat = "2006-01-02T15:04:05.000"
 var JSONFormat bool
 
 func SetLogger(logLevel uint32, jsonFormat bool) {
-	logrus.SetReportCaller(true)
+	if logLevel > 6 {
+		logLevel = 6
+	}
 	logrus.SetOutput(os.Stdout)
 	logrus.SetLevel(logrus.Level(logLevel))
+	if logLevel > 4 {
+		logrus.SetReportCaller(true)
+	}
 	JSONFormat = jsonFormat
 	if JSONFormat {
 		logrus.SetFormatter(&logrus.JSONFormatter{

@@ -23,7 +23,7 @@ func TestReceiptLogsPlugin(t *testing.T) {
 		if receipt.IsRemoved {
 			logrus.Infof("Removed >> %+v", receipt)
 		} else {
-			logrus.Infof("Adding >> %+v, tx: %s, logIdx: %d", receipt, receipt.IReceiptLog.GetTransactionHash(), receipt.IReceiptLog.GetLogIndex())
+			logrus.Infof("Adding >> %+v, tx: %s, logIdx: %d", receipt, receipt.Log.TxHash.String(), receipt.Log.Index)
 		}
 	}))
 

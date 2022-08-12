@@ -239,7 +239,7 @@ func (watcher *AbstractWatcher) LatestSyncedBlockNum() uint64 {
 		return 0
 	}
 
-	b := watcher.SyncedBlocks.Back().Value.(types.Block)
+	b := watcher.SyncedBlocks.Back().Value.(*types.Block)
 
 	return b.Number().Uint64()
 }
@@ -502,7 +502,7 @@ func (watcher *AbstractWatcher) popBlocksUntilReachMainChain() error {
 
 func (watcher *AbstractWatcher) FoundFork(newBlock *types.Block) bool {
 	for e := watcher.SyncedBlocks.Back(); e != nil; e = e.Prev() {
-		syncedBlock := e.Value.(types.Block)
+		syncedBlock := e.Value.(*types.Block)
 
 		if syncedBlock.Number().Uint64()+1 == newBlock.Number().Uint64() {
 			notMatch := (syncedBlock).Hash() != newBlock.ParentHash()

@@ -42,7 +42,7 @@ func (rpc EthBlockChainRPCWithRetry) GetTransactionReceipt(txHash string) (rst *
 	return
 }
 
-func (rpc EthBlockChainRPCWithRetry) EthGetTransactionByHash(txHash string) (rst *types.Transaction, err error) {
+func (rpc EthBlockChainRPCWithRetry) GetTransactionByHash(txHash string) (rst *types.Transaction, err error) {
 	for i := 0; i <= rpc.maxRetryTimes; i++ {
 		rst, err = rpc.EthBlockChainRPC.GetTransactionByHash(txHash)
 		if err == nil {

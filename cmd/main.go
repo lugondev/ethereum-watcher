@@ -6,15 +6,16 @@ import (
 	"ethereum-watcher/rpc"
 	"ethereum-watcher/utils"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+	"math/big"
 	"os"
 	"os/signal"
 )
 
 var api string
-var verbosity int
+var verbosity uint32
 var jsonLogFormat bool
 var contractAddr string
 var tokenAddr string
@@ -24,8 +25,7 @@ var blockBackoff int
 
 func main() {
 	rootCMD.AddCommand(blockNumCMD)
-
-	rootCMD.PersistentFlags().IntVar(&verbosity, "verbosity", 3, "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail")
+	rootCMD.PersistentFlags().Uint32Var(&verbosity, "verbosity", 4, "Logging verbosity: 0=panic, 1=fatal, 2=error, 3=warning, 4=info, 5=debug, 5=trace")
 	rootCMD.PersistentFlags().BoolVar(&jsonLogFormat, "json-log", false, "Format logs with JSON")
 	rootCMD.PersistentFlags().StringVarP(&api, "rpc", "r", "https://bsc-testnet.nodereal.io/v1/f62bd255a11145dfbc560565c1ad47c9", "RPC url")
 	_ = rootCMD.MarkPersistentFlagRequired("rpc")
@@ -51,7 +51,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	utils.SetLogger(uint32(verbosity), jsonLogFormat)
 }
 
 var rootCMD = &cobra.Command{
@@ -63,17 +62,30 @@ var checkTxCMD = &cobra.Command{
 	Use:   "check-tx",
 	Short: "Check data tx by hash",
 	Run: func(cmd *cobra.Command, args []string) {
-		logrus.Infof("Call with RPC: %s", api)
+		utils.SetLogger(verbosity, jsonLogFormat)
 
 		rpcWithRetry := rpc.NewEthRPCWithRetry(api, 3)
-		transaction, err := rpcWithRetry.EthGetTransactionByHash(txHash)
-		logrus.Debug("transaction: ", transaction)
+		transactionReceipt, err := rpcWithRetry.GetTransactionReceipt(txHash)
+		transactionByHash, err := rpcWithRetry.GetTransactionByHash(txHash)
+
 		if err != nil {
 			panic(err)
 		}
-		to := transaction.To()
+		if transactionReceipt.Status == 0 {
+			utils.Infof("transaction status: fail")
+		} else {
+			utils.Infof("transaction status: success")
+		}
+		msg, err := transactionByHash.AsMessage(types.NewEIP155Signer(transactionByHash.ChainId()), nil)
+		if err != nil {
+			utils.Errorln("Cannot get From address")
+		}
+		utils.Infof("from: %v to %v", msg.From().String(), transactionByHash.To().String())
+		utils.Infof("data: %v", common.Bytes2Hex(transactionByHash.Data()))
 
-		logrus.Debugf("hash: %s, to: %s", txHash, to)
+		fee := big.NewInt(0).Mul(transactionByHash.GasPrice(), big.NewInt(int64(transactionReceipt.GasUsed)))
+		utils.Infof("value: %v with fee %v", transactionByHash.Value(), fee.Uint64())
+		utils.Infof("gas limit: %v gas used %d", transactionByHash.Gas(), transactionReceipt.GasUsed)
 	},
 }
 
@@ -81,6 +93,8 @@ var blockNumCMD = &cobra.Command{
 	Use:   "new-block-number",
 	Short: "Print number of new block",
 	Run: func(cmd *cobra.Command, args []string) {
+		utils.SetLogger(verbosity, jsonLogFormat)
+
 		ctx, cancel := context.WithCancel(context.Background())
 
 		c := make(chan os.Signal, 1)
@@ -95,9 +109,9 @@ var blockNumCMD = &cobra.Command{
 
 		err := w.RunTillExit()
 		if err != nil {
-			logrus.Printf("exit with err: %s", err)
+			utils.Printf("exit with err: %s", err)
 		} else {
-			logrus.Infoln("exit")
+			utils.Infoln("exit")
 		}
 	},
 }
@@ -106,19 +120,20 @@ var tokenTransferCMD = &cobra.Command{
 	Use:   "token-transfer",
 	Short: "Show Transfer Event of Token",
 	Run: func(cmd *cobra.Command, args []string) {
+		utils.SetLogger(verbosity, jsonLogFormat)
 		// Transfer
 		topicsInterestedIn := []string{"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"}
 
 		handler := func(from, to int, receiptLogs []*types.Log, isUpToHighestBlock bool) error {
 
 			if from != to {
-				logrus.Infof("See new USDT Transfer at blockRange: %d -> %d, count: %2d", from, to, len(receiptLogs))
+				utils.Infof("See new USDT Transfer at blockRange: %d -> %d, count: %2d", from, to, len(receiptLogs))
 			} else {
-				logrus.Infof("See new USDT Transfer at block: %d, count: %2d", from, len(receiptLogs))
+				utils.Infof("See new USDT Transfer at block: %d, count: %2d", from, len(receiptLogs))
 			}
 
 			for _, log := range receiptLogs {
-				logrus.Infof("  >> tx: https://etherscan.io/tx/%s", log.TxHash.String())
+				utils.Infof("  >> tx: https://etherscan.io/tx/%s", log.TxHash.String())
 			}
 
 			fmt.Println("  ")
@@ -160,17 +175,18 @@ var contractEventListenerCMD = &cobra.Command{
 	--contract 0x6b175474e89094c44da98b954eedeac495271d0f \
 	--events 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef`,
 	Run: func(cmd *cobra.Command, args []string) {
+		utils.SetLogger(verbosity, jsonLogFormat)
 
 		handler := func(from, to int, receiptLogs []*types.Log, isUpToHighestBlock bool) error {
 
 			if from != to {
-				logrus.Infof("# of interested events at block(%d->%d): %d", from, to, len(receiptLogs))
+				utils.Infof("# of interested events at block(%d->%d): %d", from, to, len(receiptLogs))
 			} else {
-				logrus.Infof("# of interested events at block(%d): %d", from, len(receiptLogs))
+				utils.Infof("# of interested events at block(%d): %d", from, len(receiptLogs))
 			}
 
 			for _, log := range receiptLogs {
-				logrus.Infof("  >> tx: https://etherscan.io/tx/%s", log.TxHash.String())
+				utils.Infof("  >> tx: https://etherscan.io/tx/%s", log.TxHash.String())
 			}
 
 			fmt.Println("  ")
@@ -186,7 +202,7 @@ var contractEventListenerCMD = &cobra.Command{
 				startBlockNum = int(curBlockNum) - blockBackoff
 
 				if startBlockNum > 0 {
-					logrus.Infof("--block-backoff activated, we start from block: %d (= %d - %d)",
+					utils.Infof("--block-backoff activated, we start from block: %d (= %d - %d)",
 						startBlockNum, curBlockNum, blockBackoff)
 				}
 			}

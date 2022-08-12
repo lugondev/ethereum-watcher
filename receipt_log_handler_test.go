@@ -23,7 +23,7 @@ func TestListenForReceiptLogTillExit(t *testing.T) {
 	}
 
 	handler := func(log structs.RemovableReceiptLog) {
-		logrus.Infof("log from tx: %s", log.GetTransactionHash())
+		logrus.Infof("log from tx: %s", log.Log.TxHash.String())
 	}
 
 	stepsForBigLag := 100
@@ -48,7 +48,7 @@ func TestListenForReceiptLogTillExit2(t *testing.T) {
 	}
 
 	handler := func(log structs.RemovableReceiptLog) {
-		logrus.Infof("log from tx: %s", log.GetTransactionHash())
+		logrus.Infof("log from tx: %s", log.Log.TxHash.String())
 	}
 
 	highestProcessed := ListenForReceiptLogTillExit(ctx, api, int(startBlock), contract, interestedTopics, handler, stepsForBigLag)

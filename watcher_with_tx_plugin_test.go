@@ -23,7 +23,7 @@ func TestTxPlugin(t *testing.T) {
 	w := NewHttpBasedEthWatcher(context.Background(), api)
 
 	w.RegisterTxPlugin(plugin.NewTxPlugin(func(tx structs.RemovableTx) {
-		logrus.Printf(">> block: %d, txHash: %s", tx.GetBlockNumber(), tx.GetHash())
+		logrus.Printf(">> txHash: %s", tx.Hash().String())
 	}))
 
 	_ = w.RunTillExit()
