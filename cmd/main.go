@@ -3,10 +3,10 @@ package main
 import (
 	"context"
 	"ethereum-watcher"
-	"ethereum-watcher/blockchain"
-	"ethereum-watcher/plugin"
 	"ethereum-watcher/rpc"
+	"ethereum-watcher/utils"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"os"
@@ -14,17 +14,24 @@ import (
 )
 
 var api string
+var verbosity int
+var jsonLogFormat bool
 var contractAddr string
 var tokenAddr string
+var txHash string
 var eventSigs []string
 var blockBackoff int
 
 func main() {
 	rootCMD.AddCommand(blockNumCMD)
-	rootCMD.AddCommand(tokenTransferCMD)
 
+	rootCMD.PersistentFlags().IntVar(&verbosity, "verbosity", 3, "Logging verbosity: 0=silent, 1=error, 2=warn, 3=info, 4=debug, 5=detail")
+	rootCMD.PersistentFlags().BoolVar(&jsonLogFormat, "json-log", false, "Format logs with JSON")
 	rootCMD.PersistentFlags().StringVarP(&api, "rpc", "r", "https://bsc-testnet.nodereal.io/v1/f62bd255a11145dfbc560565c1ad47c9", "RPC url")
 	_ = rootCMD.MarkPersistentFlagRequired("rpc")
+
+	checkTxCMD.Flags().StringVar(&txHash, "hash", "", "Hash of transaction")
+	_ = checkTxCMD.MarkFlagRequired("hash")
 
 	tokenTransferCMD.Flags().StringVar(&tokenAddr, "token", "", "token address listen")
 	_ = tokenTransferCMD.MarkFlagRequired("token")
@@ -35,19 +42,39 @@ func main() {
 	_ = contractEventListenerCMD.MarkFlagRequired("events")
 	contractEventListenerCMD.Flags().IntVar(&blockBackoff, "block-backoff", 0, "how many blocks we go back")
 
+	rootCMD.AddCommand(tokenTransferCMD)
 	rootCMD.AddCommand(contractEventListenerCMD)
+	rootCMD.AddCommand(checkTxCMD)
 
 	if err := rootCMD.Execute(); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 
-	//utils.SetLogger(uint32(logrus.DebugLevel), false)
+	utils.SetLogger(uint32(verbosity), jsonLogFormat)
 }
 
 var rootCMD = &cobra.Command{
 	Use:   "ethereum-watcher",
 	Short: "ethereum-watcher makes getting updates from Ethereum easier",
+}
+
+var checkTxCMD = &cobra.Command{
+	Use:   "check-tx",
+	Short: "Check data tx by hash",
+	Run: func(cmd *cobra.Command, args []string) {
+		logrus.Infof("Call with RPC: %s", api)
+
+		rpcWithRetry := rpc.NewEthRPCWithRetry(api, 3)
+		transaction, err := rpcWithRetry.EthGetTransactionByHash(txHash)
+		logrus.Debug("transaction: ", transaction)
+		if err != nil {
+			panic(err)
+		}
+		to := transaction.To()
+
+		logrus.Debugf("hash: %s, to: %s", txHash, to)
+	},
 }
 
 var blockNumCMD = &cobra.Command{
@@ -60,11 +87,6 @@ var blockNumCMD = &cobra.Command{
 		signal.Notify(c, os.Interrupt)
 
 		w := ethereum_watcher.NewHttpBasedEthWatcher(ctx, api)
-
-		logrus.Println("waiting for new block...")
-		w.RegisterBlockPlugin(plugin.NewBlockNumPlugin(func(i uint64, b bool) {
-			logrus.Printf(">> found new block: %d, is removed: %t", i, b)
-		}))
 
 		go func() {
 			<-c
@@ -87,7 +109,7 @@ var tokenTransferCMD = &cobra.Command{
 		// Transfer
 		topicsInterestedIn := []string{"0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"}
 
-		handler := func(from, to int, receiptLogs []blockchain.IReceiptLog, isUpToHighestBlock bool) error {
+		handler := func(from, to int, receiptLogs []*types.Log, isUpToHighestBlock bool) error {
 
 			if from != to {
 				logrus.Infof("See new USDT Transfer at blockRange: %d -> %d, count: %2d", from, to, len(receiptLogs))
@@ -96,7 +118,7 @@ var tokenTransferCMD = &cobra.Command{
 			}
 
 			for _, log := range receiptLogs {
-				logrus.Infof("  >> tx: https://etherscan.io/tx/%s", log.GetTransactionHash())
+				logrus.Infof("  >> tx: https://etherscan.io/tx/%s", log.TxHash.String())
 			}
 
 			fmt.Println("  ")
@@ -130,15 +152,16 @@ var contractEventListenerCMD = &cobra.Command{
 	Use:   "contract-event-listener",
 	Short: "listen and print events from contract",
 	Example: `
-  listen to Transfer & Approve events from Multi-Collateral-DAI
-  
-  /bin/ethereum-watcher contract-event-listener \
-    --block-backoff 100
-    --contract 0x6b175474e89094c44da98b954eedeac495271d0f \
-    --events 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef`,
+	listen to Transfer & Approve events from Multi-Collateral-DAI in Ethereum
+	
+	/bin/ethereum-watcher contract-event-listener \
+	--rpc {eth}
+	--block-backoff 100
+	--contract 0x6b175474e89094c44da98b954eedeac495271d0f \
+	--events 0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef`,
 	Run: func(cmd *cobra.Command, args []string) {
 
-		handler := func(from, to int, receiptLogs []blockchain.IReceiptLog, isUpToHighestBlock bool) error {
+		handler := func(from, to int, receiptLogs []*types.Log, isUpToHighestBlock bool) error {
 
 			if from != to {
 				logrus.Infof("# of interested events at block(%d->%d): %d", from, to, len(receiptLogs))
@@ -147,7 +170,7 @@ var contractEventListenerCMD = &cobra.Command{
 			}
 
 			for _, log := range receiptLogs {
-				logrus.Infof("  >> tx: https://etherscan.io/tx/%s", log.GetTransactionHash())
+				logrus.Infof("  >> tx: https://etherscan.io/tx/%s", log.TxHash.String())
 			}
 
 			fmt.Println("  ")
@@ -157,8 +180,8 @@ var contractEventListenerCMD = &cobra.Command{
 
 		startBlockNum := -1
 		if blockBackoff > 0 {
-			rpc := rpc.NewEthRPCWithRetry(api, 3)
-			curBlockNum, err := rpc.GetCurrentBlockNum()
+			rpcWithRetry := rpc.NewEthRPCWithRetry(api, 3)
+			curBlockNum, err := rpcWithRetry.GetCurrentBlockNum()
 			if err == nil {
 				startBlockNum = int(curBlockNum) - blockBackoff
 

@@ -1,8 +1,8 @@
 package plugin
 
 import (
-	"ethereum-watcher/blockchain"
 	"ethereum-watcher/structs"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/shopspring/decimal"
 	"math/big"
 )
@@ -13,16 +13,16 @@ type ITxReceiptPlugin interface {
 
 type TxReceiptPluginWithFilter struct {
 	ITxReceiptPlugin
-	filterFunc func(transaction blockchain.Transaction) bool
+	filterFunc func(transaction *types.Transaction) bool
 }
 
-func (p TxReceiptPluginWithFilter) NeedReceipt(tx blockchain.Transaction) bool {
+func (p TxReceiptPluginWithFilter) NeedReceipt(tx *types.Transaction) bool {
 	return p.filterFunc(tx)
 }
 
 func NewTxReceiptPluginWithFilter(
 	callback func(tx *structs.RemovableTxAndReceipt),
-	filterFunc func(transaction blockchain.Transaction) bool) *TxReceiptPluginWithFilter {
+	filterFunc func(transaction *types.Transaction) bool) *TxReceiptPluginWithFilter {
 
 	p := NewTxReceiptPlugin(callback)
 	return &TxReceiptPluginWithFilter{p, filterFunc}
@@ -68,22 +68,22 @@ type TransferEvent struct {
 }
 
 func extractERC20TransfersIfExist(r *structs.RemovableTxAndReceipt) (rst []TransferEvent) {
-	transferEventSig := "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+	//transferEventSig := "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
 
-	if receipt, ok := r.Receipt.(*blockchain.EthereumTransactionReceipt); ok {
-		for _, log := range receipt.Logs {
-			if len(log.Topics) != 3 || log.Topics[0] != transferEventSig {
-				continue
-			}
-
-			from := log.Topics[1]
-			to := log.Topics[2]
-
-			if amount, ok := HexToDecimal(log.Data); ok {
-				rst = append(rst, TransferEvent{log.Address, from, to, amount})
-			}
-		}
-	}
+	//if receipt, ok := r.Receipt; ok {
+	//	for _, log := range receipt.Logs {
+	//		if len(log.Topics) != 3 || log.Topics[0] != transferEventSig {
+	//			continue
+	//		}
+	//
+	//		from := log.Topics[1]
+	//		to := log.Topics[2]
+	//
+	//		if amount, ok := HexToDecimal(log.Data); ok {
+	//			rst = append(rst, TransferEvent{log.Address, from, to, amount})
+	//		}
+	//	}
+	//}
 
 	return
 }

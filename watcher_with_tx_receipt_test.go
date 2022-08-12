@@ -2,17 +2,19 @@ package ethereum_watcher
 
 import (
 	"context"
-	"ethereum-watcher/blockchain"
 	"ethereum-watcher/plugin"
 	"ethereum-watcher/structs"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/labstack/gommon/log"
 	"github.com/shopspring/decimal"
 	"github.com/sirupsen/logrus"
 	"testing"
 )
 
-var api = "https://bsc-testnet.nodereal.io/v1/f62bd255a11145dfbc560565c1ad47c9"
+//var api = "https://bsc-testnet.nodereal.io/v1/f62bd255a11145dfbc560565c1ad47c9"
+var api = "https://bsc-mainnet.nodereal.io/v1/100eacb4d89e4df3a73cae315b777652"
 
 // todo why some tx index in block is zero?
 func TestTxReceiptPlugin(t *testing.T) {
@@ -54,7 +56,7 @@ func TestFilterPlugin(t *testing.T) {
 	}
 
 	// only accept txs which end with: f
-	filterFunc := func(tx blockchain.Transaction) bool {
+	filterFunc := func(tx types.Transaction) bool {
 		txHash := tx.GetHash()
 
 		return txHash[len(txHash)-1:] == "f"
@@ -85,7 +87,7 @@ func TestFilterPluginForDyDxApprove(t *testing.T) {
 	}
 
 	// only accept txs which send to DAI
-	filterFunc := func(tx blockchain.Transaction) bool {
+	filterFunc := func(tx types.Transaction) bool {
 		return tx.GetTo() == "0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359"
 	}
 
@@ -95,4 +97,19 @@ func TestFilterPluginForDyDxApprove(t *testing.T) {
 	if err != nil {
 		fmt.Println("RunTillExit with err:", err)
 	}
+}
+
+func TestGetTxByHash(t *testing.T) {
+	client, err := ethclient.Dial(api)
+	if err != nil {
+		panic(err)
+	}
+	number, _ := client.BlockNumber(context.Background())
+	logrus.Infof("blocknumber: %d", number)
+	transactionByHash, err := client.TransactionReceipt(context.Background(), common.HexToHash("0xe16122e6ca4ab8312a651dd1ff225b1d9b3391b15f9374687e1845e8f360fb9a"))
+	if err != nil {
+		panic(err)
+	}
+	//logrus.Infof("tx hash is pending: %v", isPending)
+	fmt.Println(transactionByHash)
 }

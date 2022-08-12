@@ -5,7 +5,7 @@ import (
 	"math/big"
 )
 
-// To Decimal
+// StringToDecimal To Decimal
 func StringToDecimal(str string) decimal.Decimal {
 	if len(str) >= 2 && str[:2] == "0x" {
 		b := new(big.Int)

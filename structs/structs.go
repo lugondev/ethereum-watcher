@@ -1,15 +1,13 @@
 package structs
 
-import (
-	"ethereum-watcher/blockchain"
-)
+import "github.com/ethereum/go-ethereum/core/types"
 
 type RemovableBlock struct {
-	blockchain.Block
+	*types.Block
 	IsRemoved bool
 }
 
-func NewRemovableBlock(block blockchain.Block, isRemoved bool) *RemovableBlock {
+func NewRemovableBlock(block *types.Block, isRemoved bool) *RemovableBlock {
 	return &RemovableBlock{
 		block,
 		isRemoved,
@@ -17,8 +15,8 @@ func NewRemovableBlock(block blockchain.Block, isRemoved bool) *RemovableBlock {
 }
 
 type TxAndReceipt struct {
-	Tx      blockchain.Transaction
-	Receipt blockchain.TransactionReceipt
+	Tx      *types.Transaction
+	Receipt *types.Receipt
 }
 
 type RemovableTxAndReceipt struct {
@@ -28,11 +26,11 @@ type RemovableTxAndReceipt struct {
 }
 
 type RemovableReceiptLog struct {
-	blockchain.IReceiptLog
+	Log       *types.Log
 	IsRemoved bool
 }
 
-func NewRemovableTxAndReceipt(tx blockchain.Transaction, receipt blockchain.TransactionReceipt, removed bool, timeStamp uint64) *RemovableTxAndReceipt {
+func NewRemovableTxAndReceipt(tx *types.Transaction, receipt *types.Receipt, removed bool, timeStamp uint64) *RemovableTxAndReceipt {
 	return &RemovableTxAndReceipt{
 		&TxAndReceipt{
 			tx,
@@ -44,26 +42,13 @@ func NewRemovableTxAndReceipt(tx blockchain.Transaction, receipt blockchain.Tran
 }
 
 type RemovableTx struct {
-	blockchain.Transaction
+	types.Transaction
 	IsRemoved bool
 }
 
-func NewRemovableTx(tx blockchain.Transaction, removed bool) RemovableTx {
+func NewRemovableTx(tx *types.Transaction, removed bool) RemovableTx {
 	return RemovableTx{
-		tx,
+		*tx,
 		removed,
 	}
 }
-
-//
-//type RemovableReceipt struct {
-//	sdk.TransactionReceipt
-//	IsRemoved bool
-//}
-//
-//func NewRemovableReceipt(receipt sdk.TransactionReceipt, removed bool) RemovableReceipt {
-//	return RemovableReceipt{
-//		receipt,
-//		removed,
-//	}
-//}

@@ -1,45 +1,44 @@
 package rpc
 
 import (
+	"context"
 	"errors"
-	"ethereum-watcher/blockchain"
-	"github.com/onrik/ethrpc"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/sirupsen/logrus"
-	"strconv"
+	"github.com/thoas/go-funk"
+	"math/big"
 )
 
 type EthBlockChainRPC struct {
-	rpcImpl *ethrpc.EthRPC
+	rpcImpl *ethclient.Client
 }
 
 func NewEthRPC(api string) *EthBlockChainRPC {
-	rpc := ethrpc.New(api)
+	client, err := ethclient.Dial(api)
+	if err != nil {
+		panic(err)
+	}
 
-	return &EthBlockChainRPC{rpc}
+	return &EthBlockChainRPC{client}
 }
 
-func (rpc EthBlockChainRPC) GetBlockByNum(num uint64) (blockchain.Block, error) {
-	return rpc.getBlockByNum(num, true)
-}
-
-func (rpc EthBlockChainRPC) GetLiteBlockByNum(num uint64) (blockchain.Block, error) {
-	return rpc.getBlockByNum(num, false)
-}
-
-func (rpc EthBlockChainRPC) getBlockByNum(num uint64, withTx bool) (blockchain.Block, error) {
-	b, err := rpc.rpcImpl.EthGetBlockByNumber(int(num), withTx)
+func (rpc EthBlockChainRPC) GetBlockByNum(num uint64) (*types.Block, error) {
+	block, err := rpc.rpcImpl.BlockByNumber(context.Background(), big.NewInt(int64(num)))
 	if err != nil {
 		return nil, err
 	}
-	if b == nil {
+	if block == nil {
 		return nil, errors.New("nil block")
 	}
 
-	return &blockchain.EthereumBlock{Block: b}, err
+	return block, err
 }
 
-func (rpc EthBlockChainRPC) GetTransactionReceipt(txHash string) (blockchain.TransactionReceipt, error) {
-	receipt, err := rpc.rpcImpl.EthGetTransactionReceipt(txHash)
+func (rpc EthBlockChainRPC) GetTransactionReceipt(txHash string) (*types.Receipt, error) {
+	receipt, err := rpc.rpcImpl.TransactionReceipt(context.Background(), common.HexToHash(txHash))
 	if err != nil {
 		return nil, err
 	}
@@ -47,28 +46,43 @@ func (rpc EthBlockChainRPC) GetTransactionReceipt(txHash string) (blockchain.Tra
 		return nil, errors.New("nil receipt")
 	}
 
-	return &blockchain.EthereumTransactionReceipt{TransactionReceipt: receipt}, err
+	return receipt, err
+}
+
+func (rpc EthBlockChainRPC) GetTransactionByHash(txHash string) (*types.Transaction, error) {
+	transaction, _, err := rpc.rpcImpl.TransactionByHash(context.Background(), common.HexToHash(txHash))
+	if err != nil {
+		return nil, err
+	}
+	if transaction == nil {
+		return nil, errors.New("nil transaction")
+	}
+	return transaction, err
 }
 
 func (rpc EthBlockChainRPC) GetCurrentBlockNum() (uint64, error) {
-	num, err := rpc.rpcImpl.EthBlockNumber()
-	return uint64(num), err
+	num, err := rpc.rpcImpl.BlockNumber(context.Background())
+	return num, err
 }
 
 func (rpc EthBlockChainRPC) GetLogs(
 	fromBlockNum, toBlockNum uint64,
 	address string,
 	topics []string,
-) ([]blockchain.IReceiptLog, error) {
+) ([]*types.Log, error) {
 
-	filterParam := ethrpc.FilterParams{
-		FromBlock: "0x" + strconv.FormatUint(fromBlockNum, 16),
-		ToBlock:   "0x" + strconv.FormatUint(toBlockNum, 16),
-		Address:   []string{address},
-		Topics:    [][]string{topics},
+	filterParam := ethereum.FilterQuery{
+		FromBlock: big.NewInt(int64(fromBlockNum)),
+		ToBlock:   big.NewInt(int64(toBlockNum)),
+		Addresses: []common.Address{common.HexToAddress(address)},
+		Topics: [][]common.Hash{
+			funk.Map(topics, func(key int, topic string) common.Hash {
+				return common.HexToHash(topic)
+			}).([]common.Hash),
+		},
 	}
 
-	logs, err := rpc.rpcImpl.EthGetLogs(filterParam)
+	logs, err := rpc.rpcImpl.FilterLogs(context.Background(), filterParam)
 	if err != nil {
 		logrus.Warnf("EthGetLogs err: %s, params: %+v", err, filterParam)
 		return nil, err
@@ -76,13 +90,13 @@ func (rpc EthBlockChainRPC) GetLogs(
 
 	logrus.Debugf("EthGetLogs logs count at block(%d - %d): %d", fromBlockNum, toBlockNum, len(logs))
 
-	var result []blockchain.IReceiptLog
+	var result []*types.Log
 	for i := 0; i < len(logs); i++ {
 		l := logs[i]
 
 		logrus.Debugf("EthGetLogs receipt log: %+v", l)
 
-		result = append(result, blockchain.ReceiptLog{Log: &l})
+		result = append(result, &l)
 	}
 
 	return result, err

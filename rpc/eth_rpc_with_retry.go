@@ -1,7 +1,7 @@
 package rpc
 
 import (
-	"ethereum-watcher/blockchain"
+	"github.com/ethereum/go-ethereum/core/types"
 	"time"
 )
 
@@ -16,7 +16,7 @@ func NewEthRPCWithRetry(api string, maxRetryCount int) *EthBlockChainRPCWithRetr
 	return &EthBlockChainRPCWithRetry{rpc, maxRetryCount}
 }
 
-func (rpc EthBlockChainRPCWithRetry) GetBlockByNum(num uint64) (rst blockchain.Block, err error) {
+func (rpc EthBlockChainRPCWithRetry) GetBlockByNum(num uint64) (rst *types.Block, err error) {
 	for i := 0; i <= rpc.maxRetryTimes; i++ {
 		rst, err = rpc.EthBlockChainRPC.GetBlockByNum(num)
 		if err == nil {
@@ -29,9 +29,9 @@ func (rpc EthBlockChainRPCWithRetry) GetBlockByNum(num uint64) (rst blockchain.B
 	return
 }
 
-func (rpc EthBlockChainRPCWithRetry) GetLiteBlockByNum(num uint64) (rst blockchain.Block, err error) {
+func (rpc EthBlockChainRPCWithRetry) GetTransactionReceipt(txHash string) (rst *types.Receipt, err error) {
 	for i := 0; i <= rpc.maxRetryTimes; i++ {
-		rst, err = rpc.EthBlockChainRPC.GetLiteBlockByNum(num)
+		rst, err = rpc.EthBlockChainRPC.GetTransactionReceipt(txHash)
 		if err == nil {
 			break
 		} else {
@@ -42,9 +42,9 @@ func (rpc EthBlockChainRPCWithRetry) GetLiteBlockByNum(num uint64) (rst blockcha
 	return
 }
 
-func (rpc EthBlockChainRPCWithRetry) GetTransactionReceipt(txHash string) (rst blockchain.TransactionReceipt, err error) {
+func (rpc EthBlockChainRPCWithRetry) EthGetTransactionByHash(txHash string) (rst *types.Transaction, err error) {
 	for i := 0; i <= rpc.maxRetryTimes; i++ {
-		rst, err = rpc.EthBlockChainRPC.GetTransactionReceipt(txHash)
+		rst, err = rpc.EthBlockChainRPC.GetTransactionByHash(txHash)
 		if err == nil {
 			break
 		} else {
@@ -71,7 +71,7 @@ func (rpc EthBlockChainRPCWithRetry) GetLogs(
 	fromBlockNum, toBlockNum uint64,
 	address string,
 	topics []string,
-) (rst []blockchain.IReceiptLog, err error) {
+) (rst []*types.Log, err error) {
 	for i := 0; i <= rpc.maxRetryTimes; i++ {
 		rst, err = rpc.EthBlockChainRPC.GetLogs(fromBlockNum, toBlockNum, address, topics)
 		if err == nil {

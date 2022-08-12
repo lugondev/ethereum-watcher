@@ -14,7 +14,7 @@ type BlockNumPlugin struct {
 
 func (p BlockNumPlugin) AcceptBlock(b *structs.RemovableBlock) {
 	if p.callback != nil {
-		p.callback(b.Number(), b.IsRemoved)
+		p.callback(b.Number().Uint64(), b.IsRemoved)
 	}
 }
 

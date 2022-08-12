@@ -2,9 +2,9 @@ package ethereum_watcher
 
 import (
 	"context"
-	"ethereum-watcher/blockchain"
 	"ethereum-watcher/rpc"
 	"fmt"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
 	"sync"
 	"time"
@@ -16,7 +16,7 @@ type ReceiptLogWatcher struct {
 	startBlockNum         int
 	contract              string
 	interestedTopics      []string
-	handler               func(from, to int, receiptLogs []blockchain.IReceiptLog, isUpToHighestBlock bool) error
+	handler               func(from, to int, receiptLogs []*types.Log, isUpToHighestBlock bool) error
 	config                ReceiptLogWatcherConfig
 	highestSyncedBlockNum int
 	highestSyncedLogIndex int
@@ -28,7 +28,7 @@ func NewReceiptLogWatcher(
 	startBlockNum int,
 	contract string,
 	interestedTopics []string,
-	handler func(from, to int, receiptLogs []blockchain.IReceiptLog, isUpToHighestBlock bool) error,
+	handler func(from, to int, receiptLogs []*types.Log, isUpToHighestBlock bool) error,
 	configs ...ReceiptLogWatcherConfig,
 ) *ReceiptLogWatcher {
 

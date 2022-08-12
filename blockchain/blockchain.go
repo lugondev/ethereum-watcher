@@ -1,11 +1,15 @@
 package blockchain
 
 import (
+	"context"
 	"errors"
 	"ethereum-watcher/utils"
 	"fmt"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/labstack/gommon/log"
-	"github.com/onrik/ethrpc"
 	"github.com/shopspring/decimal"
 	"math/big"
 	"strconv"
@@ -16,42 +20,11 @@ type BlockChain interface {
 	GetTokenAllowance(tokenAddress, proxyAddress, address string) decimal.Decimal
 
 	GetBlockNumber() (uint64, error)
-	GetBlockByNumber(blockNumber uint64) (Block, error)
+	GetBlockByNumber(blockNumber uint64) (types.Block, error)
 
-	GetTransaction(ID string) (Transaction, error)
-	GetTransactionReceipt(ID string) (TransactionReceipt, error)
-	GetTransactionAndReceipt(ID string) (Transaction, TransactionReceipt, error)
-}
-
-type Block interface {
-	Number() uint64
-	Timestamp() uint64
-	GetTransactions() []Transaction
-
-	Hash() string
-	ParentHash() string
-}
-
-type Transaction interface {
-	GetBlockHash() string
-	GetBlockNumber() uint64
-	GetFrom() string
-	GetGas() int
-	GetGasPrice() big.Int
-	GetHash() string
-	GetTo() string
-	GetValue() big.Int
-}
-
-type TransactionReceipt interface {
-	GetResult() bool
-	GetBlockNumber() uint64
-
-	GetBlockHash() string
-	GetTxHash() string
-	GetTxIndex() int
-
-	GetLogs() []IReceiptLog
+	GetTransaction(ID string) (types.Transaction, error)
+	GetTransactionReceipt(ID string) (types.Receipt, error)
+	GetTransactionAndReceipt(ID string) (types.Transaction, types.Receipt, error)
 }
 
 type IReceiptLog interface {
@@ -66,164 +39,48 @@ type IReceiptLog interface {
 	GetTopics() []string
 }
 
-// compile time interface check
-var _ BlockChain = &Ethereum{}
-
 type EthereumBlock struct {
-	*ethrpc.Block
+	*types.Block
 }
 
-func (block *EthereumBlock) Hash() string {
-	return block.Block.Hash
-}
+func (block *EthereumBlock) GetTransactions() []types.Transaction {
+	txs := make([]types.Transaction, 0, 20)
 
-func (block *EthereumBlock) ParentHash() string {
-	return block.Block.ParentHash
-}
-
-func (block *EthereumBlock) GetTransactions() []Transaction {
-	txs := make([]Transaction, 0, 20)
-
-	for i := range block.Block.Transactions {
-		tx := block.Block.Transactions[i]
-		txs = append(txs, &EthereumTransaction{&tx})
+	for i := range block.Transactions() {
+		tx := block.Transactions()[i]
+		txs = append(txs, *tx)
 	}
 
 	return txs
 }
 
-func (block *EthereumBlock) Number() uint64 {
-	return uint64(block.Block.Number)
-}
-
-func (block *EthereumBlock) Timestamp() uint64 {
-	return uint64(block.Block.Timestamp)
-}
-
 type EthereumTransaction struct {
-	*ethrpc.Transaction
-}
-
-func (t *EthereumTransaction) GetBlockHash() string {
-	return t.BlockHash
-}
-
-func (t *EthereumTransaction) GetFrom() string {
-	return t.From
-}
-
-func (t *EthereumTransaction) GetGas() int {
-	return t.Gas
-}
-
-func (t *EthereumTransaction) GetGasPrice() big.Int {
-	return t.GasPrice
-}
-
-func (t *EthereumTransaction) GetValue() big.Int {
-	return t.Value
-}
-
-func (t *EthereumTransaction) GetTo() string {
-	return t.To
-}
-
-func (t *EthereumTransaction) GetHash() string {
-	return t.Hash
-}
-func (t *EthereumTransaction) GetBlockNumber() uint64 {
-	return uint64(*t.BlockNumber)
+	*types.Transaction
 }
 
 type EthereumTransactionReceipt struct {
-	*ethrpc.TransactionReceipt
+	*types.Receipt
 }
 
-func (r *EthereumTransactionReceipt) GetLogs() (rst []IReceiptLog) {
+func (r *EthereumTransactionReceipt) GetLogs() (rst []*types.Log) {
 	for i := range r.Logs {
-		l := ReceiptLog{&r.Logs[i]}
-		rst = append(rst, l)
+		rst = append(rst, r.Logs[i])
 	}
 
 	return
 }
 
-func (r *EthereumTransactionReceipt) GetResult() bool {
-	res, err := strconv.ParseInt(r.Status, 0, 64)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return res == 1
-}
-
-func (r *EthereumTransactionReceipt) GetBlockNumber() uint64 {
-	return uint64(r.BlockNumber)
-}
-
-func (r *EthereumTransactionReceipt) GetBlockHash() string {
-	return r.BlockHash
-}
-func (r *EthereumTransactionReceipt) GetTxHash() string {
-	return r.TransactionHash
-}
-func (r *EthereumTransactionReceipt) GetTxIndex() int {
-	return r.TransactionIndex
-}
-
 type ReceiptLog struct {
-	*ethrpc.Log
-}
-
-func (log ReceiptLog) GetRemoved() bool {
-	return log.Removed
-}
-
-func (log ReceiptLog) GetLogIndex() int {
-	return log.LogIndex
-}
-
-func (log ReceiptLog) GetTransactionIndex() int {
-	return log.TransactionIndex
-}
-
-func (log ReceiptLog) GetTransactionHash() string {
-	return log.TransactionHash
-}
-
-func (log ReceiptLog) GetBlockNum() int {
-	return log.BlockNumber
-}
-
-func (log ReceiptLog) GetBlockHash() string {
-	return log.BlockHash
-}
-
-func (log ReceiptLog) GetAddress() string {
-	return log.Address
-}
-
-func (log ReceiptLog) GetData() string {
-	return log.Data
-}
-
-func (log ReceiptLog) GetTopics() []string {
-	return log.Topics
+	*types.Log
 }
 
 type Ethereum struct {
-	client       *ethrpc.EthRPC
-	hybridExAddr string
+	client *ethclient.Client
 }
 
-func (e *Ethereum) EnableDebug(b bool) {
-	e.client.Debug = b
-}
+func (e *Ethereum) GetBlockByNumber(number uint64) (*types.Block, error) {
 
-func (e *Ethereum) GetBlockByNumber(number uint64) (Block, error) {
-
-	block, err := e.client.EthGetBlockByNumber(int(number), true)
+	block, err := e.client.BlockByNumber(context.Background(), big.NewInt(int64(number)))
 
 	if err != nil {
 		log.Errorf("get Block by Number failed %+v", err)
@@ -235,51 +92,51 @@ func (e *Ethereum) GetBlockByNumber(number uint64) (Block, error) {
 		return nil, errors.New("get Block by Number returns nil block for num: " + strconv.Itoa(int(number)))
 	}
 
-	return &EthereumBlock{block}, nil
+	return block, nil
 }
 
 func (e *Ethereum) GetBlockNumber() (uint64, error) {
-	number, err := e.client.EthBlockNumber()
+	number, err := e.client.BlockNumber(context.Background())
 
 	if err != nil {
 		log.Errorf("GetBlockNumber failed, %v", err)
 		return 0, err
 	}
 
-	return uint64(number), nil
+	return number, nil
 }
 
-func (e *Ethereum) GetTransaction(ID string) (Transaction, error) {
-	tx, err := e.client.EthGetTransactionByHash(ID)
+func (e *Ethereum) GetTransaction(ID string) (*types.Transaction, error) {
+	tx, _, err := e.client.TransactionByHash(context.Background(), common.HexToHash(ID))
 
 	if err != nil {
 		log.Errorf("GetTransaction failed, %v", err)
 		return nil, err
 	}
 
-	return &EthereumTransaction{tx}, nil
+	return tx, nil
 }
 
-func (e *Ethereum) GetTransactionReceipt(ID string) (TransactionReceipt, error) {
-	txReceipt, err := e.client.EthGetTransactionReceipt(ID)
+func (e *Ethereum) GetTransactionReceipt(ID string) (*types.Receipt, error) {
+	txReceipt, err := e.client.TransactionReceipt(context.Background(), common.HexToHash(ID))
 
 	if err != nil {
 		log.Errorf("GetTransactionReceipt failed, %v", err)
 		return nil, err
 	}
 
-	return &EthereumTransactionReceipt{txReceipt}, nil
+	return txReceipt, nil
 }
 
-func (e *Ethereum) GetTransactionAndReceipt(ID string) (Transaction, TransactionReceipt, error) {
-	txReceiptChannel := make(chan TransactionReceipt)
+func (e *Ethereum) GetTransactionAndReceipt(ID string) (*types.Transaction, *types.Receipt, error) {
+	txReceiptChannel := make(chan *types.Receipt)
 
 	go func() {
 		rec, _ := e.GetTransactionReceipt(ID)
 		txReceiptChannel <- rec
 	}()
 
-	txInfoChannel := make(chan Transaction)
+	txInfoChannel := make(chan *types.Transaction)
 	go func() {
 		tx, _ := e.GetTransaction(ID)
 		txInfoChannel <- tx
@@ -289,17 +146,18 @@ func (e *Ethereum) GetTransactionAndReceipt(ID string) (Transaction, Transaction
 }
 
 func (e *Ethereum) GetTokenBalance(tokenAddress, address string) decimal.Decimal {
-	res, err := e.client.EthCall(ethrpc.T{
-		To:   tokenAddress,
-		From: address,
-		Data: fmt.Sprintf("0x70a08231000000000000000000000000%s", without0xPrefix(address)),
-	}, "latest")
+	toContract := common.HexToAddress(tokenAddress)
+	res, err := e.client.CallContract(context.Background(), ethereum.CallMsg{
+		To:   &toContract,
+		From: common.HexToAddress(address),
+		Data: []byte(fmt.Sprintf("0x70a08231000000000000000000000000%s", without0xPrefix(address))),
+	}, nil)
 
 	if err != nil {
 		panic(err)
 	}
 
-	return utils.StringToDecimal(res)
+	return utils.StringToDecimal(string(res))
 }
 
 func without0xPrefix(address string) string {
@@ -311,19 +169,25 @@ func without0xPrefix(address string) string {
 }
 
 func (e *Ethereum) GetTokenAllowance(tokenAddress, proxyAddress, address string) decimal.Decimal {
-	res, err := e.client.EthCall(ethrpc.T{
-		To:   tokenAddress,
-		From: address,
-		Data: fmt.Sprintf("0xdd62ed3e000000000000000000000000%s000000000000000000000000%s", without0xPrefix(address), without0xPrefix(proxyAddress)),
-	}, "latest")
+	toContract := common.HexToAddress(tokenAddress)
+	res, err := e.client.CallContract(context.Background(), ethereum.CallMsg{
+		To:   &toContract,
+		From: common.HexToAddress(address),
+		Data: []byte(fmt.Sprintf("0xdd62ed3e000000000000000000000000%s000000000000000000000000%s", without0xPrefix(address), without0xPrefix(proxyAddress))),
+	}, nil)
 
 	if err != nil {
 		panic(err)
 	}
 
-	return utils.StringToDecimal(res)
+	return utils.StringToDecimal(string(res))
 }
 
-func (e *Ethereum) GetTransactionCount(address string) (int, error) {
-	return e.client.EthGetTransactionCount(address, "latest")
+func (e *Ethereum) GetNonce(address string) (int, error) {
+	nonceAt, err := e.client.NonceAt(context.Background(), common.HexToAddress(address), nil)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(nonceAt), err
 }

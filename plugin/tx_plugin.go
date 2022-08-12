@@ -14,7 +14,7 @@ type TxHashPlugin struct {
 
 func (p TxHashPlugin) AcceptTx(transaction structs.RemovableTx) {
 	if p.callback != nil {
-		p.callback(transaction.GetHash(), transaction.IsRemoved)
+		p.callback(transaction.Hash().String(), transaction.IsRemoved)
 	}
 }
 

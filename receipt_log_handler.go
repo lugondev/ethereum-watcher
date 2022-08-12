@@ -68,7 +68,7 @@ func ListenForReceiptLogTillExit(
 
 			for i := 0; i < len(logs); i++ {
 				handler(structs.RemovableReceiptLog{
-					IReceiptLog: logs[i],
+					Log: logs[i],
 				})
 			}
 
