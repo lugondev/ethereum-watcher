@@ -127,13 +127,13 @@ var tokenTransferCMD = &cobra.Command{
 		handler := func(from, to int, receiptLogs []*types.Log, isUpToHighestBlock bool) error {
 
 			if from != to {
-				utils.Infof("See new USDT Transfer at blockRange: %d -> %d, count: %2d", from, to, len(receiptLogs))
+				utils.Infof("See new Transfer at blockRange: %d -> %d, count: %2d", from, to, len(receiptLogs))
 			} else {
-				utils.Infof("See new USDT Transfer at block: %d, count: %2d", from, len(receiptLogs))
+				utils.Infof("See new Transfer at block: %d, count: %2d", from, len(receiptLogs))
 			}
 
 			for _, log := range receiptLogs {
-				utils.Infof("  >> tx: https://etherscan.io/tx/%s", log.TxHash.String())
+				utils.Infof("  >> tx: %s", log.TxHash.String())
 			}
 
 			fmt.Println("  ")
