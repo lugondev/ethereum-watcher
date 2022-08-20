@@ -76,7 +76,7 @@ func (rpc EthBlockChainRPC) GetLogs(
 		ToBlock:   big.NewInt(int64(toBlockNum)),
 		Addresses: []common.Address{common.HexToAddress(address)},
 		Topics: [][]common.Hash{
-			funk.Map(topics, func(key int, topic string) common.Hash {
+			funk.Map(topics, func(topic string) common.Hash {
 				return common.HexToHash(topic)
 			}).([]common.Hash),
 		},

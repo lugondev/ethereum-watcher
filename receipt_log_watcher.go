@@ -3,6 +3,7 @@ package ethereum_watcher
 import (
 	"context"
 	"ethereum-watcher/rpc"
+	"ethereum-watcher/utils"
 	"fmt"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sirupsen/logrus"
@@ -31,6 +32,7 @@ func NewReceiptLogWatcher(
 	handler func(from, to int, receiptLogs []*types.Log, isUpToHighestBlock bool) error,
 	configs ...ReceiptLogWatcherConfig,
 ) *ReceiptLogWatcher {
+	utils.Infoln("Topics:", interestedTopics)
 
 	config := decideConfig(configs...)
 
